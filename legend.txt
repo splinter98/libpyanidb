@@ -1,0 +1,7 @@
+touched|resolved|set|complete|error
+
+touched=this has been handled, do not touch twice
+resolved=has had no errors before resolve
+set=has had no errors in setting resolved values
+complete=usually set at the same time as set, but can be delayed if it has depedencies
+	 (job has lid-field, so it's not complete after resolve)
