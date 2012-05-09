@@ -142,7 +142,7 @@ class AnimeCommand(Command):
 		aname=self.parameters['aname']
 		
 		names=','.join([code for code in AnimeResponse.acodes if code!=''])
-		ruleholder=(aid and 'aid=%s' or '(name=%s OR romaji=%s OR kanji=%s OR othername=%s OR shortnames RLIKE %s OR synonyms RLIKE %s)')
+		ruleholder=(aid and 'aid=?' or '(name=? OR romaji=? OR kanji=? OR othername=? OR shortnames RLIKE ? OR synonyms RLIKE ?)')
 		rulevalues=(aid and [aid] or [aname,aname,aname,aname,"('|^)"+aname+"('|$)","('|^)"+aname+"('|$)"])
 		
 		rows=db.select('atb',names,ruleholder+" AND status&8",*rulevalues)
@@ -164,14 +164,14 @@ class AnimeCommand(Command):
 			return
 
 		codes=AnimeResponse.acodes
-		if len(db.select('atb','aid','aid=%s',self.resp.datalines[0]['aid'])):
-			sets='status=status|15,'+','.join([code+'=%s' for code in codes if code!=''])
+		if len(db.select('atb','aid','aid=?',self.resp.datalines[0]['aid'])):
+			sets='status=status|15,'+','.join([code+'=?' for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']+[self.resp.datalines[0]['aid']]
 
-			db.update('atb',sets,'aid=%s',*values)
+			db.update('atb',sets,'aid=?',*values)
 		else:
 			names='status,'+','.join([code for code in AnimeResponse.acodes if code!=''])
-			valueholders='0,'+','.join(['%s'for code in AnimeResponse.acodes if code!=''])
+			valueholders='0,'+','.join(['?'for code in AnimeResponse.acodes if code!=''])
 			values=[self.resp.datalines[0][code] for code in AnimeResponse.acodes if code!='']
 		
 			db.insert('atb',names,valueholders,*values)
@@ -191,7 +191,7 @@ class EpisodeCommand(Command):
 
 		names="eid,aid,length,rating,votes,epno,name,romaji,kanji"
 		if eid:
-			ruleholder="eid=%s"
+			ruleholder="eid=?"
 			rulevalues=[eid]
 		else:
 			resp=intr.anime(aid=aid,aname=aname,acode=-1)
@@ -203,7 +203,7 @@ class EpisodeCommand(Command):
 				return resp
 			aid=resp.datalines[0]['aid']
 			
-			ruleholder="aid=%s AND epno=%s"
+			ruleholder="aid=? AND epno=?"
 			rulevalues=[aid,epno]
 		
 		rows=db.select('etb',names,ruleholder+" AND status&8",*rulevalues)
@@ -222,23 +222,23 @@ class EpisodeCommand(Command):
 			return
 
 		codes=('eid','aid','length','rating','votes','epno','name','romaji','kanji')
-		if len(db.select('etb','eid','eid=%s',self.resp.datalines[0]['eid'])):
-			sets='status=status|15,'+','.join([code+'=%s' for code in codes if code!=''])
+		if len(db.select('etb','eid','eid=?',self.resp.datalines[0]['eid'])):
+			sets='status=status|15,'+','.join([code+'=?' for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']+[self.resp.datalines[0]['eid']]
 
-			db.update('etb',sets,'eid=%s',*values)
+			db.update('etb',sets,'eid=?',*values)
 		else:
 			names='status,'+','.join([code for code in codes if code!=''])
-			valueholders='0,'+','.join(['%s'for code in codes if code!=''])
+			valueholders='0,'+','.join(['?'for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']
 
 			db.insert('etb',names,valueholders,*values)
 
 class FileCommand(Command):
-	def __init__(self,fid=None,size=None,ed2k=None,aid=None,aname=None,gid=None,gname=None,epno=None,fcode=None,acode=None):
+	def __init__(self,fid=None,size=None,ed2k=None,aid=None,aname=None,gid=None,gname=None,epno=None,fmask=None,amask=None):
 		if not (fid or (size and ed2k) or ((aid or aname) and (gid or gname) and epno)) or (fid and (size or ed2k or aid or aname or gid or gname or epno)) or ((size and ed2k) and (fid or aid or aname or gid or gname or epno)) or (((aid or aname) and (gid or gname) and epno) and (fid or size or ed2k)) or (aid and aname) or (gid and gname):
 			raise AniDBIncorrectParameterError,"You must provide <fid XOR size+ed2k XOR a(id|name)+g(id|name)+epno> for FILE command"
-		parameters={'fid':fid,'size':size,'ed2k':ed2k,'aid':aid,'aname':aname,'gid':gid,'gname':gname,'epno':epno,'fcode':fcode,'acode':acode}
+		parameters={'fid':fid,'size':size,'ed2k':ed2k,'aid':aid,'aname':aname,'gid':gid,'gname':gname,'epno':epno,'fmask':fmask,'amask':amask}
 		Command.__init__(self,'FILE',**parameters)
 	
 	def cached(self,intr,db):
@@ -250,21 +250,21 @@ class FileCommand(Command):
 		gid=self.parameters['gid']
 		gname=self.parameters['gname']
 		epno=self.parameters['epno']
-		acode=self.parameters['acode']
-		fcode=self.parameters['fcode']
-		acode=acode and int(acode) or acode
-		fcode=fcode and int(fcode) or fcode
+		amask=self.parameters['amask']
+		fmask=self.parameters['fmask']
+		#~ amask=amask and int(amask, 16) or amask
+		#~ fmask=fmask and int(fmask, 16) or fmask
 
-		if acode!=0:#we won't support querying all the information for now..
-			return None
-
-		names=','.join([code for code in ('fid',)+FileResponse.fcodes if code!=''])
+		#~ if amask!='00000000':#we won't support querying all the information for now..
+			#~ return None
+		#~ names=','.join([code for code in ('fid',)+FileResponse.fmasks if code!=''])
+		names=','.join([code for code in FileResponse.gencodetail(fmask,amask)])
 		
 		if fid:
-			ruleholder="fid=%s"
+			ruleholder="fid=?"
 			rulevalues=[fid]
 		elif size and ed2k:
-			ruleholder="size=%s AND ed2k=%s"
+			ruleholder="size=? AND ed2k=?"
 			rulevalues=[size,ed2k]
 		else:
 			resp=intr.anime(aid=aid,aname=aname,acode=-1)
@@ -288,38 +288,38 @@ class FileCommand(Command):
 				return resp
 			eid=resp.datalines[0]['eid']
 
-			ruleholder="aid=%s AND eid=%s AND gid=%s"
+			ruleholder="aid=? AND eid=? AND gid=?"
 			rulevalues=[aid,eid,gid]
 
 		rows=db.select('ftb',names,ruleholder+" AND status&8",*rulevalues)
-
 		if len(rows)>1:
 			#resp=MultipleFilesFoundResponse(self,None,'322','CACHED MULTIPLE FILES FOUND',/*get fids from rows, not gonna do this as you haven't got a real cache out of these..*/)
 			return None
 		elif not len(rows):
 			return None
+		elif None in rows[0]:
+			#We do not have all fields Cached so for now pass through the query - in future could do a mix & match
+			return None
 		else:
-			self.parameters['fcode']=-1
+			#~ self.parameters['fmask']='79F8FFE90'
 			resp=FileResponse(self,None,'220','CACHED FILE',[list(rows[0])])
 			resp.parse()
 			return resp
 	
 	def cache(self,intr,db):
-		fcode=self.parameters['fcode']
-		fcode=fcode and int(fcode) or fcode
-		if self.resp.rescode!='220' or self.cached(intr,db) or fcode!=-1:
+		if self.resp.rescode!='220' or self.cached(intr,db):
 			return
 		
-		codes=('fid',)+FileResponse.fcodes
-		if len(db.select('ftb','fid','fid=%s',self.resp.datalines[0]['fid'])):
-			sets='status=status|15,'+','.join([code+'=%s' for code in codes if code!=''])
-			values=[self.resp.datalines[0][code] for code in codes if code!='']+[self.resp.datalines[0]['fid']]
+		codes=self.resp.codetail
+		if len(db.select('ftb','fid','fid=?',self.resp.datalines[0]['fid'])):
+			sets='status=status|15,'+','.join([code+'=?' for code in codes])
+			values=[self.resp.datalines[0][code] for code in codes]+[self.resp.datalines[0]['fid']]
 
-			db.update('ftb',sets,'fid=%s',*values)
+			db.update('ftb',sets,'fid=?',*values)
 		else:
-			names='status,'+','.join([code for code in ('fid',)+FileResponse.fcodes if code!=''])
-			valueholders='0,'+','.join(['%s'for code in ('fid',)+FileResponse.fcodes if code!=''])
-			values=[self.resp.datalines[0][code] for code in ('fid',)+FileResponse.fcodes if code!='']
+			names='status,'+','.join([code for code in codes])
+			valueholders='0,'+','.join(['?'for code in codes])
+			values=[self.resp.datalines[0][code] for code in codes]
 
 			db.insert('ftb',names,valueholders,*values)
 
@@ -336,7 +336,7 @@ class GroupCommand(Command):
 		
 		codes=('gid', 'rating', 'votes', 'animes', 'files', 'name', 'shortname', 'ircchannel', 'ircserver', 'url')
 		names=','.join([code for code in codes if code!=''])
-		ruleholder=(gid and 'gid=%s' or '(name=%s OR shortname=%s)')
+		ruleholder=(gid and 'gid=?' or '(name=? OR shortname=?)')
 		rulevalues=(gid and [gid] or [gname,gname])
 		
 		rows=db.select('gtb',names,ruleholder+" AND status&8",*rulevalues)
@@ -355,14 +355,14 @@ class GroupCommand(Command):
 			return
 
 		codes=('gid', 'rating', 'votes', 'animes', 'files', 'name', 'shortname', 'ircchannel', 'ircserver', 'url')
-		if len(db.select('gtb','gid','gid=%s',self.resp.datalines[0]['gid'])):
-			sets='status=status|15,'+','.join([code+'=%s' for code in codes if code!=''])
+		if len(db.select('gtb','gid','gid=?',self.resp.datalines[0]['gid'])):
+			sets='status=status|15,'+','.join([code+'=?' for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']+[self.resp.datalines[0]['gid']]
 
-			db.update('gtb',sets,'gid=%s',*values)
+			db.update('gtb',sets,'gid=?',*values)
 		else:
 			names='status,'+','.join([code for code in codes if code!=''])
-			valueholders='0,'+','.join(['%s'for code in codes if code!=''])
+			valueholders='0,'+','.join(['?'for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']
 		
 			db.insert('gtb',names,valueholders,*values)
@@ -380,7 +380,7 @@ class ProducerCommand(Command):
 		
 		codes=('pid', 'name', 'shortname', 'othername', 'type', 'pic', 'url')
 		names=','.join([code for code in codes if code!=''])
-		ruleholder=(pid and 'pid=%s' or '(name=%s OR shortname=%s OR othername=%s)')
+		ruleholder=(pid and 'pid=?' or '(name=? OR shortname=? OR othername=?)')
 		rulevalues=(pid and [pid] or [pname,pname,pname])
 		
 		rows=db.select('ptb',names,ruleholder+" AND status&8",*rulevalues)
@@ -399,14 +399,14 @@ class ProducerCommand(Command):
 			return
 
 		codes=('pid', 'name', 'shortname', 'othername', 'type', 'pic', 'url')
-		if len(db.select('ptb','pid','pid=%s',self.resp.datalines[0]['pid'])):
-			sets='status=status|15,'+','.join([code+'=%s' for code in codes if code!=''])
+		if len(db.select('ptb','pid','pid=?',self.resp.datalines[0]['pid'])):
+			sets='status=status|15,'+','.join([code+'=?' for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']+[self.resp.datalines[0]['pid']]
 
-			db.update('ptb',sets,'pid=%s',*values)
+			db.update('ptb',sets,'pid=?',*values)
 		else:
 			names='status,'+','.join([code for code in codes if code!=''])
-			valueholders='0,'+','.join(['%s'for code in codes if code!=''])
+			valueholders='0,'+','.join(['?'for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']
 		
 			db.insert('ptb',names,valueholders,*values)
@@ -432,7 +432,7 @@ class MyListCommand(Command):
 		names=','.join([code for code in MylistResponse(None,None,None,None,[]).codetail if code!=''])
 		
 		if lid:
-			ruleholder="lid=%s"
+			ruleholder="lid=?"
 			rulevalues=[lid]
 		elif fid or size or ed2k:
 			resp=intr.file(fid=fid,size=size,ed2k=ed2k)
@@ -442,7 +442,7 @@ class MyListCommand(Command):
 				return resp
 			fid=resp.datalines[0]['fid']
 			
-			ruleholder="fid=%s"
+			ruleholder="fid=?"
 			rulevalues=[fid]
 		else:
 			resp=intr.anime(aid=aid,aname=aname)
@@ -466,7 +466,7 @@ class MyListCommand(Command):
 				return resp
 			eid=resp.datalines[0]['eid']
 
-			ruleholder="aid=%s AND eid=%s AND gid=%s"
+			ruleholder="aid=? AND eid=? AND gid=?"
 			rulevalues=[aid,eid,gid]
 
 		rows=db.select('ltb',names,ruleholder+" AND status&8",*rulevalues)
@@ -486,14 +486,14 @@ class MyListCommand(Command):
 			return
 
 		codes=MylistResponse(None,None,None,None,[]).codetail
-		if len(db.select('ltb','lid','lid=%s',self.resp.datalines[0]['lid'])):
-			sets='status=status|15,'+','.join([code+'=%s' for code in codes if code!=''])
+		if len(db.select('ltb','lid','lid=?',self.resp.datalines[0]['lid'])):
+			sets='status=status|15,'+','.join([code+'=?' for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']+[self.resp.datalines[0]['lid']]
 
-			db.update('ltb',sets,'lid=%s',*values)
+			db.update('ltb',sets,'lid=?',*values)
 		else:
 			names='status,'+','.join([code for code in codes if code!=''])
-			valueholders='15,'+','.join(['%s' for code in codes if code!=''])
+			valueholders='15,'+','.join(['?' for code in codes if code!=''])
 			values=[self.resp.datalines[0][code] for code in codes if code!='']
 
 			db.insert('ltb',names,valueholders,*values)

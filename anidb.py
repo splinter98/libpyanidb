@@ -305,7 +305,7 @@ class AniDBInterface:
 		"""
 		return self.handle(EpisodeCommand(eid,aid,aname,epno),callback)
 	
-	def file(self,fid=None,size=None,ed2k=None,aid=None,aname=None,gid=None,gname=None,epno=None,fcode=-1,acode=0,callback=None):
+	def file(self,fid=None,size=None,ed2k=None,aid=None,aname=None,gid=None,gname=None,epno=None,fmask='79F8FFE90',amask='00000000',callback=None):
 		"""
 		Get information about a file
 
@@ -397,7 +397,7 @@ class AniDBInterface:
 		31	-		-
 		
 		"""
-		return self.handle(FileCommand(fid,size,ed2k,aid,aname,gid,gname,epno,fcode,acode),callback)
+		return self.handle(FileCommand(fid,size,ed2k,aid,aname,gid,gname,epno,fmask,amask),callback)
 	
 	def group(self,gid=None,gname=None,callback=None):
 		"""

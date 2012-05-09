@@ -3,7 +3,7 @@ from types import FunctionType
 class ResponseResolver:
 	def __init__(self,data):
 		restag,rescode,resstr,datalines=self.parse(data)
-		
+
 		self.restag=restag
 		self.rescode=rescode
 		self.resstr=resstr
@@ -23,9 +23,9 @@ class ResponseResolver:
 		datalines=[]
 		for line in lines:
 			datalines.append(line.split('|'))
-		
+
 		return restag,rescode,resstr,datalines
-	
+
 	def resolve(self,cmd):
 		return responses[self.rescode](cmd,self.restag,self.rescode,self.resstr,self.datalines)
 
@@ -40,13 +40,13 @@ class Response:
 
 	def __repr__(self):
 		tmp="%s(%s,%s,%s) %s\n"%(self.__class__.__name__,repr(self.restag),repr(self.rescode),repr(self.resstr),repr(self.attrs))
-		
+
 		m=0
 		for line in self.datalines:
 			for k,v in line.iteritems():
 				if len(k)>m:
 					m=len(k)
-		
+
 		for line in self.datalines:
 			tmp+="  Line:\n"
 			for k,v in line.iteritems():
@@ -57,7 +57,7 @@ class Response:
 		tmp=self.resstr.split(' ',len(self.codehead))
 		self.attrs=dict(zip(self.codehead,tmp[:-1]))
 		self.resstr=tmp[-1]
-		
+
 		self.datalines=[]
 		for rawline in self.rawlines:
 			normal=dict(zip(self.codetail,rawline))
@@ -70,7 +70,7 @@ class Response:
 					rep.append(tmp)
 			normal['rep']=rep
 			self.datalines.append(normal)
-	
+
 	def handle(self):
 		if self.req:
 			self.req.handle(self)
@@ -278,9 +278,9 @@ class EncodingChangedResponse(Response):
 		self.coderep=()
 
 class FileResponse(Response):
-	fcodes=('', 'aid', 'eid', 'gid', 'lid', '', '', '', 'state', 'size', 'ed2k', 'md5', 'sha1', 'crc32', '', '', 'dublang', 'sublang', 'quality', 'source', 'audiocodec', 'audiobitrate', 'videocodec', 'videobitrate', 'resolution', 'filetype', 'length', 'description', '', '', 'filename', '')
-	acodes=('gname', 'gshortname', '', '', '', '', '', '', 'epno', 'epname', 'epromaji', 'epkanji', '', '', '', '', 'totaleps', 'lastep', 'year', 'type', 'romaji', 'kanji', 'name', 'othername', 'shortnames', 'synonyms', 'categories', 'relatedaids', 'producernames', 'producerids', 'awards', '')
-	all_codes=fcodes+acodes
+	fmasks=('', 'aid', 'eid', 'gid', 'lid', 'otherepisodes', 'IsDeprecated', 'state', 'size', 'ed2k', 'md5', 'sha1', 'crc32', '', '', '', 'quality', 'source', 'audiocodec', 'audiobitrate', 'videocodec', 'videobitrate', 'videoresolution', 'filetype', 'dublang', 'sublang', 'length', 'description', 'aireddate', '', '', 'filename', 'myliststate', 'mylistfilestate', 'mylistviewed', 'mylistviewdate', 'myliststorage', 'mylistsource', 'mylistother', '')
+	amasks=('animetotalepisodes', 'highestepisodenumber', 'year', 'type', 'relatedaidlist', 'relatedaidtype', 'categorylist', '', 'romajiname', 'kanjiname', 'englishname', 'othername', 'shortnamelist', 'synonymlist', '', '', 'epno', 'epname', 'epromajiname', 'epkanjiname', 'episoderating', 'episodevotecount', '', '', 'groupname', 'groupshortname', '', '', '', '', '', 'dateaidrecordupdated', )
+	all_codes=fmasks+amasks
 	def __init__(self,cmd,restag,rescode,resstr,datalines):
 		"""
 		attributes:
@@ -328,20 +328,26 @@ class FileResponse(Response):
 		relatedaids	related aid list
 		producernames	producer name list
 		producerids	producer id list
-		
+
 		"""
 		Response.__init__(self,cmd,restag,rescode,resstr,datalines)
 		self.codestr='FILE'
 		self.codehead=()
 		self.coderep=()
 
-		fcode=cmd.parameters['fcode']
-		acode=cmd.parameters['acode']
-		fcode=int(fcode==None and 2+4+8+256+512+1024+1073741824 or fcode)
-		acode=int(acode!=None and acode or 0)
-		cmd_codes=fcode|(acode*(2**32))
+		fmask=cmd.parameters['fmask']
+		amask=cmd.parameters['amask']
+		self.codetail=self.gencodetail(fmask,amask)
 
-		self.codetail=tuple(['fid']+[self.all_codes[i] for i in range(64) if cmd_codes&(2**i) and self.all_codes[i]!=''])
+	@classmethod
+	def gencodetail(self,fmask,amask):
+		fmask=int(fmask==None and '0x71C0010' or fmask, 16)
+		amask=int(amask!=None and amask or '0', 16)
+		cmd_codes=amask|(fmask<<len(self.amasks))
+		codetail=[self.all_codes[i] for i in range(len(self.all_codes)) if cmd_codes&(2**(len(self.all_codes)-1-i)) and self.all_codes[i]!='']
+		#~ codetail.reverse()
+		return tuple(['fid']+codetail)
+
 
 class MylistResponse(Response):
 	def __init__(self,cmd,restag,rescode,resstr,datalines):
@@ -842,7 +848,7 @@ class NotificationResponse(Response):
 		notifies - pending notifies
 		msgs	 - pending msgs
 		buddys	 - number of online buddys
-		
+
 		"""
 		Response.__init__(self,cmd,restag,rescode,resstr,datalines)
 		self.codestr='NOTIFICATION'
